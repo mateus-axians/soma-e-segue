@@ -886,8 +886,9 @@ function renderConfirm() {
 async function submitTransaction() {
   setLoading(true, "Saving to spreadsheet…");
 
-  const body = {
+  const params = new URLSearchParams({
     pin:         savedPin,
+    action:      "log",
     date:        tx.date,
     description: tx.description || "",
     type:        tx.type,
@@ -895,20 +896,14 @@ async function submitTransaction() {
     amount:      tx.amount,
     account:     tx.account,
     person:      tx.person,
-    notes:       "via web app",
-  };
+  });
 
   try {
-    const res = await fetch(SCRIPT_URL, {
-      method:   "POST",
-      redirect: "follow",
-      body:     JSON.stringify(body),
-    });
+    const res  = await fetch(`${SCRIPT_URL}?${params.toString()}`);
     const data = await res.json();
     setLoading(false);
 
     if (data.ok) {
-      // Show success
       const icons = { "Expense": "💸", "Income": "💰", "Savings Transfer": "🏦" };
       document.getElementById("success-icon").textContent = icons[tx.type] || "✅";
       document.getElementById("success-sub").textContent =
@@ -917,7 +912,6 @@ async function submitTransaction() {
       flowIndex++;
       renderStep("success");
 
-      // Show "Log another" button
       const actions = document.getElementById("actions");
       actions.style.display = "flex";
       document.getElementById("btn-back").style.display = "none";
@@ -929,12 +923,11 @@ async function submitTransaction() {
         goToHome();
       };
     } else {
-      setLoading(false);
       toast("Error: " + (data.error || "Unknown error"), 4000);
     }
   } catch(e) {
     setLoading(false);
-    toast("Network error — check your connection", 4000);
+    toast("Network error — check connection", 4000);
   }
 }
 
