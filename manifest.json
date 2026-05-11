@@ -1,0 +1,24 @@
+{
+  "name": "soma e segue",
+  "short_name": "FinBot",
+  "description": "Log household expenses, income and savings goals",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#1E2A3A",
+  "theme_color": "#048A81",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

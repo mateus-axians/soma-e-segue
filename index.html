@@ -1,0 +1,951 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#048A81" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Finance" />
+  <title>Finance Tracker</title>
+  <link rel="manifest" href="manifest.json" />
+  <link rel="apple-touch-icon" href="icon-192.png" />
+
+  <style>
+    /* ── Reset & base ─────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --dark:    #1E2A3A;
+      --mid:     #2E4057;
+      --accent:  #048A81;
+      --light:   #E8F4F2;
+      --yellow:  #FFF3CD;
+      --white:   #FFFFFF;
+      --gray:    #F2F4F6;
+      --border:  #B0BEC5;
+      --red:     #E53935;
+      --green:   #2E7D32;
+      --orange:  #E65100;
+      --radius:  14px;
+      --shadow:  0 4px 24px rgba(0,0,0,.12);
+    }
+
+    html, body {
+      height: 100%; width: 100%;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--dark);
+      color: #1a1a1a;
+      overscroll-behavior: none;
+    }
+
+    /* ── App shell ────────────────────────────────────────── */
+    #app {
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      max-width: 480px;
+      margin: 0 auto;
+      background: var(--gray);
+    }
+
+    /* ── Header ───────────────────────────────────────────── */
+    header {
+      background: var(--dark);
+      padding: 16px 20px 14px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    header h1 {
+      font-size: 18px;
+      font-weight: 700;
+      color: white;
+      flex: 1;
+    }
+    header .subtitle {
+      font-size: 11px;
+      color: var(--accent);
+      font-weight: 500;
+      letter-spacing: .5px;
+      text-transform: uppercase;
+    }
+    .header-icon { font-size: 24px; }
+
+    /* ── Screens ──────────────────────────────────────────── */
+    .screen {
+      display: none;
+      flex-direction: column;
+      flex: 1;
+      padding: 16px;
+      gap: 12px;
+      animation: fadeIn .2s ease;
+    }
+    .screen.active { display: flex; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* ── Cards ────────────────────────────────────────────── */
+    .card {
+      background: var(--white);
+      border-radius: var(--radius);
+      padding: 20px;
+      box-shadow: var(--shadow);
+    }
+    .card-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--mid);
+      text-transform: uppercase;
+      letter-spacing: .6px;
+      margin-bottom: 16px;
+    }
+
+    /* ── Type buttons (Expense / Income / Transfer) ────────── */
+    .type-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 10px;
+    }
+    .type-btn {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 18px 8px;
+      border-radius: 12px;
+      border: 2.5px solid transparent;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 600;
+      transition: all .15s;
+      background: var(--gray);
+      color: var(--mid);
+      -webkit-tap-highlight-color: transparent;
+    }
+    .type-btn .icon { font-size: 28px; }
+    .type-btn:active { transform: scale(.95); }
+    .type-btn.expense  { border-color: #E53935; }
+    .type-btn.income   { border-color: #2E7D32; }
+    .type-btn.transfer { border-color: #1565C0; }
+    .type-btn.expense.selected  { background: #FFEBEE; color: var(--red); }
+    .type-btn.income.selected   { background: #E8F5E9; color: var(--green); }
+    .type-btn.transfer.selected { background: #E3F2FD; color: #1565C0; }
+
+    /* ── Option list (categories, accounts, members) ───────── */
+    .option-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .option-btn {
+      width: 100%;
+      text-align: left;
+      padding: 14px 16px;
+      border-radius: 10px;
+      border: 2px solid var(--border);
+      background: var(--white);
+      font-size: 15px;
+      cursor: pointer;
+      transition: all .12s;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .option-btn:active { transform: scale(.98); background: var(--light); }
+    .option-btn.selected { border-color: var(--accent); background: var(--light); font-weight: 600; }
+    .option-btn .check { color: var(--accent); font-size: 18px; opacity: 0; transition: opacity .12s; }
+    .option-btn.selected .check { opacity: 1; }
+
+    /* ── Amount input ─────────────────────────────────────── */
+    .amount-wrapper {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+    .amount-prefix {
+      position: absolute;
+      left: 18px;
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--mid);
+    }
+    #amount-input {
+      width: 100%;
+      padding: 20px 20px 20px 50px;
+      font-size: 36px;
+      font-weight: 700;
+      border: 2.5px solid var(--border);
+      border-radius: var(--radius);
+      outline: none;
+      color: var(--dark);
+      background: var(--white);
+      transition: border-color .15s;
+      -webkit-appearance: none;
+    }
+    #amount-input:focus { border-color: var(--accent); }
+
+    /* ── Text input (description, notes) ─────────────────── */
+    .text-input {
+      width: 100%;
+      padding: 14px 16px;
+      font-size: 16px;
+      border: 2px solid var(--border);
+      border-radius: 10px;
+      outline: none;
+      background: var(--white);
+      color: var(--dark);
+      transition: border-color .15s;
+    }
+    .text-input:focus { border-color: var(--accent); }
+
+    /* ── Date input ───────────────────────────────────────── */
+    #date-input {
+      width: 100%;
+      padding: 14px 16px;
+      font-size: 16px;
+      border: 2px solid var(--border);
+      border-radius: 10px;
+      outline: none;
+      background: var(--white);
+      color: var(--dark);
+      -webkit-appearance: none;
+    }
+    #date-input:focus { border-color: var(--accent); }
+
+    /* ── Confirm summary ──────────────────────────────────── */
+    .summary-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--gray);
+      font-size: 15px;
+    }
+    .summary-row:last-child { border-bottom: none; }
+    .summary-label { color: #888; font-size: 13px; }
+    .summary-value { font-weight: 600; color: var(--dark); }
+    .summary-amount { font-size: 22px; font-weight: 800; color: var(--accent); }
+
+    /* ── Bottom action bar ────────────────────────────────── */
+    .actions {
+      display: flex;
+      gap: 10px;
+      padding: 12px 16px 20px;
+      background: var(--gray);
+      border-top: 1px solid var(--border);
+      position: sticky;
+      bottom: 0;
+    }
+    .btn {
+      flex: 1;
+      padding: 16px;
+      border-radius: 12px;
+      font-size: 16px;
+      font-weight: 700;
+      border: none;
+      cursor: pointer;
+      transition: all .15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn:active { transform: scale(.97); }
+    .btn-primary   { background: var(--accent); color: white; }
+    .btn-secondary { background: var(--white);  color: var(--mid); border: 2px solid var(--border); }
+    .btn-danger    { background: var(--red);    color: white; }
+    .btn:disabled  { opacity: .45; cursor: not-allowed; }
+
+    /* ── Progress indicator ───────────────────────────────── */
+    .progress-bar {
+      display: flex;
+      gap: 6px;
+      justify-content: center;
+      padding: 4px 0 2px;
+    }
+    .progress-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--border);
+      transition: background .2s;
+    }
+    .progress-dot.active   { background: var(--accent); }
+    .progress-dot.done     { background: var(--mid); }
+
+    /* ── Success screen ───────────────────────────────────── */
+    .success-icon { font-size: 72px; text-align: center; padding: 16px 0 8px; }
+    .success-title { font-size: 24px; font-weight: 800; text-align: center; color: var(--dark); }
+    .success-sub   { font-size: 15px; text-align: center; color: #666; margin-top: 6px; }
+
+    /* ── PIN screen ───────────────────────────────────────── */
+    .pin-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+    }
+    .pin-btn {
+      padding: 20px;
+      border-radius: 50%;
+      border: none;
+      background: var(--white);
+      font-size: 22px;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: var(--shadow);
+      transition: transform .1s, background .1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .pin-btn:active { transform: scale(.92); background: var(--light); }
+    .pin-dots {
+      display: flex;
+      gap: 16px;
+      justify-content: center;
+      margin: 24px 0 16px;
+    }
+    .pin-dot {
+      width: 16px; height: 16px;
+      border-radius: 50%;
+      background: var(--border);
+      transition: background .15s;
+    }
+    .pin-dot.filled { background: var(--accent); }
+    .pin-error {
+      text-align: center;
+      color: var(--red);
+      font-size: 14px;
+      font-weight: 600;
+      min-height: 20px;
+      animation: shake .3s;
+    }
+    @keyframes shake {
+      0%,100% { transform: translateX(0); }
+      25%      { transform: translateX(-8px); }
+      75%      { transform: translateX(8px); }
+    }
+
+    /* ── Loading overlay ──────────────────────────────────── */
+    #loading {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(30,42,58,.7);
+      backdrop-filter: blur(4px);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 14px;
+    }
+    #loading.show { display: flex; }
+    .spinner {
+      width: 44px; height: 44px;
+      border: 4px solid rgba(255,255,255,.2);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    #loading p { color: white; font-size: 15px; font-weight: 500; }
+
+    /* ── Toast ────────────────────────────────────────────── */
+    #toast {
+      position: fixed;
+      bottom: 90px;
+      left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      background: var(--dark);
+      color: white;
+      padding: 12px 22px;
+      border-radius: 100px;
+      font-size: 14px;
+      font-weight: 600;
+      opacity: 0;
+      transition: all .25s;
+      pointer-events: none;
+      white-space: nowrap;
+      max-width: 90vw;
+      z-index: 50;
+    }
+    #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    /* ── Skip hint ────────────────────────────────────────── */
+    .skip-hint {
+      text-align: center;
+      font-size: 13px;
+      color: #999;
+      margin-top: 4px;
+    }
+
+    /* ── Error state ──────────────────────────────────────── */
+    .error-box {
+      background: #FFEBEE;
+      border: 1.5px solid var(--red);
+      border-radius: 10px;
+      padding: 14px 16px;
+      font-size: 14px;
+      color: var(--red);
+      display: none;
+    }
+    .error-box.show { display: block; }
+  </style>
+</head>
+<body>
+
+<div id="app">
+
+  <!-- LOADING OVERLAY -->
+  <div id="loading">
+    <div class="spinner"></div>
+    <p id="loading-text">Loading…</p>
+  </div>
+
+  <!-- TOAST -->
+  <div id="toast"></div>
+
+  <!-- HEADER -->
+  <header>
+    <span class="header-icon">💰</span>
+    <div>
+      <h1 id="header-title">Finance Tracker</h1>
+      <div class="subtitle" id="header-sub">Household</div>
+    </div>
+  </header>
+
+  <!-- ── SCREEN: PIN ───────────────────────────────────────── -->
+  <div class="screen active" id="screen-pin">
+    <div class="card" style="margin-top:16px;">
+      <div class="card-title" style="text-align:center;">🔒 Enter PIN</div>
+      <div class="pin-dots" id="pin-dots">
+        <div class="pin-dot" id="dot-0"></div>
+        <div class="pin-dot" id="dot-1"></div>
+        <div class="pin-dot" id="dot-2"></div>
+        <div class="pin-dot" id="dot-3"></div>
+      </div>
+      <div class="pin-error" id="pin-error"></div>
+      <div class="pin-grid" style="margin-top:12px;">
+        <button class="pin-btn" onclick="pinPress('1')">1</button>
+        <button class="pin-btn" onclick="pinPress('2')">2</button>
+        <button class="pin-btn" onclick="pinPress('3')">3</button>
+        <button class="pin-btn" onclick="pinPress('4')">4</button>
+        <button class="pin-btn" onclick="pinPress('5')">5</button>
+        <button class="pin-btn" onclick="pinPress('6')">6</button>
+        <button class="pin-btn" onclick="pinPress('7')">7</button>
+        <button class="pin-btn" onclick="pinPress('8')">8</button>
+        <button class="pin-btn" onclick="pinPress('9')">9</button>
+        <button class="pin-btn" onclick="pinPress('back')" style="font-size:18px;">⌫</button>
+        <button class="pin-btn" onclick="pinPress('0')">0</button>
+        <button class="pin-btn" onclick="pinPress('ok')" style="background:var(--accent);color:white;">OK</button>
+      </div>
+      <p class="skip-hint" style="margin-top:16px;">PIN is set in your Apps Script</p>
+    </div>
+  </div>
+
+  <!-- ── SCREEN: HOME ──────────────────────────────────────── -->
+  <div class="screen" id="screen-home">
+    <div class="card" style="padding-bottom:12px;">
+      <div class="card-title">What are you logging?</div>
+      <div class="type-grid">
+        <button class="type-btn expense" onclick="selectType('Expense')">
+          <span class="icon">💸</span>Expense
+        </button>
+        <button class="type-btn income" onclick="selectType('Income')">
+          <span class="icon">💰</span>Income
+        </button>
+        <button class="type-btn transfer" onclick="selectType('Savings Transfer')">
+          <span class="icon">🏦</span>Transfer
+        </button>
+      </div>
+    </div>
+    <div class="error-box" id="home-error">
+      Could not load config from spreadsheet. Check your Apps Script URL and PIN.
+    </div>
+  </div>
+
+  <!-- ── SCREEN: CATEGORY ──────────────────────────────────── -->
+  <div class="screen" id="screen-category">
+    <div class="progress-bar" id="prog-cat"></div>
+    <div class="card">
+      <div class="card-title" id="cat-title">Category</div>
+      <div class="option-list" id="cat-list"></div>
+    </div>
+  </div>
+
+  <!-- ── SCREEN: AMOUNT ────────────────────────────────────── -->
+  <div class="screen" id="screen-amount">
+    <div class="progress-bar" id="prog-amt"></div>
+    <div class="card">
+      <div class="card-title">Amount</div>
+      <div class="amount-wrapper">
+        <span class="amount-prefix">€</span>
+        <input type="number" id="amount-input" inputmode="decimal"
+               placeholder="0.00" min="0.01" step="0.01" />
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Date</div>
+      <input type="date" id="date-input" class="text-input" />
+    </div>
+  </div>
+
+  <!-- ── SCREEN: DESCRIPTION ───────────────────────────────── -->
+  <div class="screen" id="screen-desc">
+    <div class="progress-bar" id="prog-desc"></div>
+    <div class="card">
+      <div class="card-title">Description <span style="font-weight:400;color:#aaa;">(optional)</span></div>
+      <input type="text" id="desc-input" class="text-input"
+             placeholder="e.g. Mercadona, November salary…" />
+      <p class="skip-hint" style="margin-top:10px;">Leave blank to skip</p>
+    </div>
+  </div>
+
+  <!-- ── SCREEN: ACCOUNT ───────────────────────────────────── -->
+  <div class="screen" id="screen-account">
+    <div class="progress-bar" id="prog-acc"></div>
+    <div class="card">
+      <div class="card-title">Account</div>
+      <div class="option-list" id="acc-list"></div>
+    </div>
+  </div>
+
+  <!-- ── SCREEN: PERSON ────────────────────────────────────── -->
+  <div class="screen" id="screen-person">
+    <div class="progress-bar" id="prog-per"></div>
+    <div class="card">
+      <div class="card-title" id="person-title">Who paid?</div>
+      <div class="option-list" id="person-list"></div>
+    </div>
+  </div>
+
+  <!-- ── SCREEN: CONFIRM ───────────────────────────────────── -->
+  <div class="screen" id="screen-confirm">
+    <div class="card">
+      <div class="card-title">Confirm</div>
+      <div id="summary-rows"></div>
+    </div>
+  </div>
+
+  <!-- ── SCREEN: SUCCESS ───────────────────────────────────── -->
+  <div class="screen" id="screen-success">
+    <div class="success-icon" id="success-icon">✅</div>
+    <div class="success-title">Logged!</div>
+    <div class="success-sub" id="success-sub"></div>
+  </div>
+
+</div><!-- /app -->
+
+<!-- ── BOTTOM ACTIONS (outside screen flow so it stays sticky) -->
+<div class="actions" id="actions" style="display:none;">
+  <button class="btn btn-secondary" id="btn-back" onclick="goBack()">← Back</button>
+  <button class="btn btn-primary"   id="btn-next" onclick="goNext()">Next →</button>
+</div>
+
+<script>
+// ═════════════════════════════════════════════════════════════════
+// CONFIG — set your deployed Apps Script URL here
+// ═════════════════════════════════════════════════════════════════
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbykbnasirGNRoIe4sjwMunfzFOSiZoetAB_l1_4AccjhIUT5arc71MMi44L199DzvPjFA/exec";
+// After deploying Code.gs as a web app, paste the URL above.
+// Looks like: https://script.google.com/macros/s/LONG_ID/exec
+
+const PIN_LENGTH = 4;
+
+// ═════════════════════════════════════════════════════════════════
+// STATE
+// ═════════════════════════════════════════════════════════════════
+let config   = null;   // loaded from Apps Script
+let pin      = "";     // current PIN entry
+let savedPin = "";     // verified PIN (sent with every API call)
+
+const tx = {           // current transaction being built
+  type:        null,
+  category:    null,
+  amount:      null,
+  date:        null,
+  description: null,
+  account:     null,
+  person:      null,
+};
+
+// Screen flow per type
+const FLOWS = {
+  "Expense":          ["home","category","amount","desc","account","person","confirm","success"],
+  "Income":           ["home","category","amount","desc","account","person","confirm","success"],
+  "Savings Transfer": ["home","amount","desc","account","person","confirm","success"],
+};
+let flow      = [];
+let flowIndex = 0;
+
+// ═════════════════════════════════════════════════════════════════
+// HELPERS
+// ═════════════════════════════════════════════════════════════════
+function show(id) {
+  document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
+  document.getElementById("screen-" + id).classList.add("active");
+  window.scrollTo(0, 0);
+}
+
+function showActions(backLabel, nextLabel, nextDisabled) {
+  const el = document.getElementById("actions");
+  el.style.display = "flex";
+  document.getElementById("btn-back").textContent = backLabel || "← Back";
+  const btn = document.getElementById("btn-next");
+  btn.textContent = nextLabel || "Next →";
+  btn.disabled = !!nextDisabled;
+}
+
+function hideActions() {
+  document.getElementById("actions").style.display = "none";
+}
+
+function setLoading(show, text) {
+  const el = document.getElementById("loading");
+  el.classList.toggle("show", show);
+  if (text) document.getElementById("loading-text").textContent = text;
+}
+
+function toast(msg, duration) {
+  const el = document.getElementById("toast");
+  el.textContent = msg;
+  el.classList.add("show");
+  clearTimeout(window._toastTimer);
+  window._toastTimer = setTimeout(() => el.classList.remove("show"), duration || 2500);
+}
+
+function today() {
+  return new Date().toISOString().split("T")[0];
+}
+
+function buildProgress(currentStep, total) {
+  const dots = [];
+  for (let i = 0; i < total; i++) {
+    const cls = i < currentStep ? "done" : i === currentStep ? "active" : "";
+    dots.push(`<div class="progress-dot ${cls}"></div>`);
+  }
+  return dots.join("");
+}
+
+// ═════════════════════════════════════════════════════════════════
+// PIN SCREEN
+// ═════════════════════════════════════════════════════════════════
+let pinValue = "";
+
+function pinPress(key) {
+  const errEl = document.getElementById("pin-error");
+  errEl.textContent = "";
+
+  if (key === "back") {
+    pinValue = pinValue.slice(0, -1);
+  } else if (key === "ok") {
+    if (pinValue.length < PIN_LENGTH) {
+      errEl.textContent = `Enter ${PIN_LENGTH} digits`;
+      return;
+    }
+    submitPin();
+    return;
+  } else {
+    if (pinValue.length >= PIN_LENGTH) return;
+    pinValue += key;
+    if (pinValue.length === PIN_LENGTH) submitPin();
+  }
+  updatePinDots();
+}
+
+function updatePinDots() {
+  for (let i = 0; i < PIN_LENGTH; i++) {
+    document.getElementById("dot-" + i).classList.toggle("filled", i < pinValue.length);
+  }
+}
+
+async function submitPin() {
+  setLoading(true, "Checking PIN…");
+  try {
+    const res = await fetch(`${SCRIPT_URL}?pin=${pinValue}`);
+    const data = await res.json();
+    setLoading(false);
+    if (data.ok) {
+      savedPin = pinValue;
+      config   = data;
+      // Pre-render lists
+      renderOptionList("acc-list",    config.accounts,    accSelected);
+      renderOptionList("person-list", config.members,     personSelected);
+      goToHome();
+    } else {
+      document.getElementById("pin-error").textContent = "Wrong PIN — try again";
+      pinValue = "";
+      updatePinDots();
+    }
+  } catch(e) {
+    setLoading(false);
+    document.getElementById("pin-error").textContent = "Network error — check Apps Script URL";
+    pinValue = "";
+    updatePinDots();
+  }
+}
+
+// ═════════════════════════════════════════════════════════════════
+// HOME SCREEN
+// ═════════════════════════════════════════════════════════════════
+function goToHome() {
+  // Reset transaction
+  Object.keys(tx).forEach(k => tx[k] = null);
+  flow = []; flowIndex = 0;
+  show("home");
+  hideActions();
+  document.querySelectorAll(".type-btn").forEach(b => b.classList.remove("selected"));
+}
+
+function selectType(type) {
+  tx.type = type;
+  document.querySelectorAll(".type-btn").forEach(b => b.classList.remove("selected"));
+  const cls = { "Expense": "expense", "Income": "income", "Savings Transfer": "transfer" };
+  document.querySelector(`.type-btn.${cls[type]}`).classList.add("selected");
+  flow = FLOWS[type];
+  flowIndex = 0;  // 0 = home
+
+  // Pre-render category list for this type
+  const cats = type === "Income" ? config.incomeTypes : config.categories;
+  const catTitle = type === "Income" ? "Income Type" : "Category";
+  document.getElementById("cat-title").textContent = catTitle;
+  renderOptionList("cat-list", cats, catSelected);
+
+  // Person title
+  document.getElementById("person-title").textContent =
+    type === "Income" ? "Who received it?" : "Who paid?";
+
+  // Small delay for button animation feel
+  setTimeout(() => goNext(), 120);
+}
+
+// ═════════════════════════════════════════════════════════════════
+// FLOW NAVIGATION
+// ═════════════════════════════════════════════════════════════════
+function goNext() {
+  flowIndex++;
+  const step = flow[flowIndex];
+  if (!step) return;
+  renderStep(step);
+}
+
+function goBack() {
+  if (flowIndex <= 1) { goToHome(); return; }
+  flowIndex--;
+  renderStep(flow[flowIndex]);
+}
+
+function renderStep(step) {
+  const total = flow.length - 2; // exclude home and success
+  const idx   = flowIndex - 1;   // 0-based visible step
+
+  show(step);
+
+  if (step === "category") {
+    document.getElementById("prog-cat").innerHTML = buildProgress(idx, total);
+    showActions("← Back", "Next →", !tx.category);
+  }
+  else if (step === "amount") {
+    document.getElementById("prog-amt").innerHTML = buildProgress(idx, total);
+    document.getElementById("amount-input").value = tx.amount || "";
+    document.getElementById("date-input").value   = tx.date || today();
+    showActions("← Back", "Next →", false);
+    setTimeout(() => document.getElementById("amount-input").focus(), 100);
+  }
+  else if (step === "desc") {
+    document.getElementById("prog-desc").innerHTML = buildProgress(idx, total);
+    document.getElementById("desc-input").value = tx.description || "";
+    showActions("← Back", "Next →", false);
+    setTimeout(() => document.getElementById("desc-input").focus(), 100);
+  }
+  else if (step === "account") {
+    document.getElementById("prog-acc").innerHTML = buildProgress(idx, total);
+    // Highlight current selection
+    document.querySelectorAll("#acc-list .option-btn").forEach(b =>
+      b.classList.toggle("selected", b.dataset.value === tx.account));
+    showActions("← Back", "Next →", !tx.account);
+  }
+  else if (step === "person") {
+    document.getElementById("prog-per").innerHTML = buildProgress(idx, total);
+    document.querySelectorAll("#person-list .option-btn").forEach(b =>
+      b.classList.toggle("selected", b.dataset.value === tx.person));
+    showActions("← Back", "Next →", !tx.person);
+  }
+  else if (step === "confirm") {
+    renderConfirm();
+    showActions("← Back", "✅ Confirm & Save", false);
+    document.getElementById("btn-next").onclick = submitTransaction;
+    document.getElementById("btn-next").style.background = "var(--accent)";
+  }
+  else if (step === "success") {
+    hideActions();
+    const newBtn = document.getElementById("btn-next");
+    newBtn.onclick = goNext; // reset for next use
+  }
+}
+
+// ═════════════════════════════════════════════════════════════════
+// OPTION LISTS
+// ═════════════════════════════════════════════════════════════════
+function renderOptionList(containerId, items, onSelect) {
+  const el = document.getElementById(containerId);
+  el.innerHTML = "";
+  if (!items || !items.length) {
+    el.innerHTML = '<p style="color:#aaa;font-size:14px;padding:8px;">No items found — check Setup sheet</p>';
+    return;
+  }
+  items.forEach(item => {
+    const btn = document.createElement("button");
+    btn.className = "option-btn";
+    btn.dataset.value = item;
+    btn.innerHTML = `<span>${item}</span><span class="check">✓</span>`;
+    btn.onclick = () => onSelect(item, btn);
+    el.appendChild(btn);
+  });
+}
+
+function catSelected(val, btn) {
+  tx.category = val;
+  document.querySelectorAll("#cat-list .option-btn").forEach(b => b.classList.remove("selected"));
+  btn.classList.add("selected");
+  document.getElementById("btn-next").disabled = false;
+  setTimeout(goNext, 150);
+}
+
+function accSelected(val, btn) {
+  tx.account = val;
+  document.querySelectorAll("#acc-list .option-btn").forEach(b => b.classList.remove("selected"));
+  btn.classList.add("selected");
+  document.getElementById("btn-next").disabled = false;
+  setTimeout(goNext, 150);
+}
+
+function personSelected(val, btn) {
+  tx.person = val;
+  document.querySelectorAll("#person-list .option-btn").forEach(b => b.classList.remove("selected"));
+  btn.classList.add("selected");
+  document.getElementById("btn-next").disabled = false;
+  setTimeout(goNext, 150);
+}
+
+// ═════════════════════════════════════════════════════════════════
+// AMOUNT & DATE STEP
+// ═════════════════════════════════════════════════════════════════
+// Override goNext for amount screen to validate first
+const _origGoNext = goNext;
+document.getElementById("btn-next").addEventListener("click", () => {}, false); // placeholder
+
+function goNext() {
+  const step = flow[flowIndex];
+
+  if (step === "amount") {
+    const amt = parseFloat(document.getElementById("amount-input").value);
+    if (!amt || amt <= 0) { toast("Please enter a valid amount"); return; }
+    tx.amount = amt;
+    tx.date   = document.getElementById("date-input").value || today();
+  }
+  if (step === "desc") {
+    tx.description = document.getElementById("desc-input").value.trim();
+  }
+
+  flowIndex++;
+  const next = flow[flowIndex];
+  if (!next) return;
+  renderStep(next);
+}
+
+// ═════════════════════════════════════════════════════════════════
+// CONFIRM
+// ═════════════════════════════════════════════════════════════════
+function renderConfirm() {
+  const rows = [
+    ["Type",        tx.type],
+    ["Category",    tx.category  || "—"],
+    ["Amount",      `€${parseFloat(tx.amount).toFixed(2)}`],
+    ["Date",        tx.date],
+    ["Description", tx.description || "—"],
+    ["Account",     tx.account],
+    ["Person",      tx.person],
+  ];
+  const typeColors = {
+    "Expense": "var(--red)", "Income": "var(--green)", "Savings Transfer": "#1565C0"
+  };
+  const el = document.getElementById("summary-rows");
+  el.innerHTML = rows.map(([label, val]) => {
+    const isAmt = label === "Amount";
+    const color = isAmt ? (typeColors[tx.type] || "var(--accent)") : "";
+    return `<div class="summary-row">
+      <span class="summary-label">${label}</span>
+      <span class="summary-value${isAmt ? " summary-amount" : ""}" style="color:${color}">${val}</span>
+    </div>`;
+  }).join("");
+}
+
+// ═════════════════════════════════════════════════════════════════
+// SUBMIT
+// ═════════════════════════════════════════════════════════════════
+async function submitTransaction() {
+  setLoading(true, "Saving to spreadsheet…");
+
+  const body = {
+    pin:         savedPin,
+    date:        tx.date,
+    description: tx.description || "",
+    type:        tx.type,
+    category:    tx.category || "",
+    amount:      tx.amount,
+    account:     tx.account,
+    person:      tx.person,
+    notes:       "via web app",
+  };
+
+  try {
+    const res = await fetch(SCRIPT_URL, {
+      method:  "POST",
+      headers: { "Content-Type": "text/plain" },  // Apps Script requires text/plain for CORS POST
+      body:    JSON.stringify(body),
+    });
+    const data = await res.json();
+    setLoading(false);
+
+    if (data.ok) {
+      // Show success
+      const icons = { "Expense": "💸", "Income": "💰", "Savings Transfer": "🏦" };
+      document.getElementById("success-icon").textContent = icons[tx.type] || "✅";
+      document.getElementById("success-sub").textContent =
+        `${tx.category || tx.type} · €${parseFloat(tx.amount).toFixed(2)} · ${tx.person}`;
+
+      flowIndex++;
+      renderStep("success");
+
+      // Show "Log another" button
+      const actions = document.getElementById("actions");
+      actions.style.display = "flex";
+      document.getElementById("btn-back").style.display = "none";
+      document.getElementById("btn-next").textContent = "＋ Log another";
+      document.getElementById("btn-next").disabled = false;
+      document.getElementById("btn-next").onclick = () => {
+        document.getElementById("btn-back").style.display = "";
+        document.getElementById("btn-next").onclick = goNext;
+        goToHome();
+      };
+    } else {
+      setLoading(false);
+      toast("Error: " + (data.error || "Unknown error"), 4000);
+    }
+  } catch(e) {
+    setLoading(false);
+    toast("Network error — check your connection", 4000);
+  }
+}
+
+// ═════════════════════════════════════════════════════════════════
+// SERVICE WORKER (PWA offline support)
+// ═════════════════════════════════════════════════════════════════
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("sw.js").catch(() => {});
+  });
+}
+</script>
+</body>
+</html>

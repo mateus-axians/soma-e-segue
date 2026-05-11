@@ -1,278 +1,205 @@
-# WhatsApp Finance Bot — Full Setup Guide
+# Finance Tracker PWA — Full Setup Guide
 
-Everything free. Estimated time: 3–4 hours total.
+Zero cost. No server. No Meta. No verification. Works on any phone.
 
 ---
 
-## Overview of what you're building
+## What you're building
 
 ```
-You & partner (WhatsApp)
-        ↓  message
-  Meta Cloud API  (free, handles WhatsApp protocol)
-        ↓  POST to your webhook
-  Flask app on Render.com  (free hosting)
-        ↓  read config / write rows
+Browser (iPhone / Android / Desktop)
+        ↓  HTTPS
+  GitHub Pages  (free static hosting)
+    index.html  — the app UI
+        ↓  fetch()
+  Google Apps Script  (free serverless, lives in your Google account)
+    Code.gs  — reads config, writes rows
+        ↓  Sheets API (internal, no key needed)
   Google Sheets  (your Finance Tracker spreadsheet)
-        ↑
-  cron-job.org pings /ping every 14 min  (keeps server warm)
 ```
+
+Total cost: €0. No cold starts. No pinging. No accounts besides GitHub and Google.
 
 ---
 
-## Part 1 — Google Sheets setup  (~30 min)
+## Part 1 — Google Sheets  (~5 min)
 
-### 1.1 — Upload your spreadsheet to Google Sheets
+If you haven't already from the previous guide:
 
-1. Open Google Drive → **New → File Upload** → select `Household_Finance_Tracker.xlsx`
-2. Once uploaded, right-click → **Open with → Google Sheets**
+1. Upload `Household_Finance_Tracker.xlsx` to Google Drive
+2. Open with Google Sheets
 3. Copy the **Spreadsheet ID** from the URL:
-   ```
-   https://docs.google.com/spreadsheets/d/THIS_IS_YOUR_ID/edit
-   ```
-   Save it — you'll need it later.
-
-### 1.2 — Create a Google Cloud project
-
-1. Go to https://console.cloud.google.com
-2. Click the project dropdown (top left) → **New Project**
-3. Name it anything (e.g. "finance-bot") → **Create**
-4. Make sure your new project is selected in the dropdown
-
-### 1.3 — Enable the Google Sheets API
-
-1. In the left menu → **APIs & Services → Library**
-2. Search for "Google Sheets API" → click it → **Enable**
-
-### 1.4 — Create a Service Account (your bot's identity for Sheets)
-
-1. **APIs & Services → Credentials → Create Credentials → Service Account**
-2. Name: `finance-bot` → **Create and Continue** → **Done**
-3. Click the service account email you just created
-4. Tab **Keys → Add Key → Create new key → JSON → Create**
-5. A `.json` file downloads automatically — **keep this safe, treat it like a password**
-
-### 1.5 — Share the spreadsheet with the service account
-
-1. Open the `.json` file — find the `client_email` field:
-   ```
-   "client_email": "finance-bot@your-project.iam.gserviceaccount.com"
-   ```
-2. Open your Google Sheet → **Share** (top right)
-3. Paste that email address → set role to **Editor** → **Send**
-
-The bot can now read and write your spreadsheet.
-
-### 1.6 — Prepare the credentials for your .env
-
-Open the `.json` key file in a text editor.
-Minify it to a single line (you can use https://jsonformatter.org/json-minifier).
-This single-line JSON is your `GOOGLE_CREDENTIALS_JSON` value.
+   `docs.google.com/spreadsheets/d/THIS_IS_YOUR_ID/edit`
 
 ---
 
-## Part 2 — Meta / WhatsApp setup  (~60 min, mostly waiting)
+## Part 2 — Deploy the Apps Script backend  (~10 min)
 
-### 2.1 — Create a Meta Developer account
+This is the only backend you need. It runs inside Google's servers for free.
 
-1. Go to https://developers.facebook.com
-2. Sign in with any Facebook account (personal is fine, it won't affect it)
-3. Click **My Apps → Create App**
-4. Choose **Business** type → give it any name → **Create App**
+### 2.1 — Open Apps Script
 
-### 2.2 — Add WhatsApp to your app
+1. In your Google Sheet: **Extensions → Apps Script**
+2. A new tab opens with a code editor
 
-1. In your app dashboard → scroll to **Add Products** → find **WhatsApp** → **Set up**
-2. You'll land on the WhatsApp API Setup page
+### 2.2 — Paste the backend code
 
-### 2.3 — Get a free test phone number
-
-Meta provides a free test sender number automatically.
-On the API Setup page you'll see:
-- **From** — the test phone number Meta gave you (you don't pay for this)
-- **To** — your own WhatsApp number
-
-Click **Add phone number** under "To" to pre-approve your number and your partner's number.
-You can approve up to 5 numbers on the free test number — more than enough.
-
-### 2.4 — Get your credentials
-
-On the API Setup page, collect:
-- **Phone Number ID** (a long number, NOT the phone number itself)
-- **Temporary access token** — copy it, but we'll replace it with a permanent one next
-
-### 2.5 — Create a permanent access token (important — test tokens expire in 24h)
-
-1. Go to **Business Settings** (business.facebook.com/settings)
-2. **Users → System Users → Add** → name it "finance-bot" → role: **Admin**
-3. Click **Generate New Token** → select your app → grant `whatsapp_business_messaging` permission
-4. Copy the token — this one **never expires**
-
-This permanent token is your `WHATSAPP_TOKEN`.
-
----
-
-## Part 3 — Deploy to Render.com  (~30 min)
-
-### 3.1 — Push code to GitHub
-
-1. Create a new **private** repository on GitHub
-2. In the `whatsapp-bot/` folder on your machine:
-   ```bash
-   git init
-   git add .
-   git commit -m "initial bot"
-   git remote add origin https://github.com/YOUR_USERNAME/finance-bot.git
-   git push -u origin main
+1. Delete everything in the editor
+2. Open `Code.gs` from this project and paste the entire contents
+3. Find this line at the top and paste your Spreadsheet ID:
+   ```js
+   const SPREADSHEET_ID = "PASTE_YOUR_SPREADSHEET_ID_HERE";
    ```
-   ⚠️ Make sure `.env` is in `.gitignore` — **never** push real credentials.
+4. Set your PIN (or leave `""` to disable):
+   ```js
+   const ACCESS_PIN = "1234";
+   ```
+5. **Save** (Ctrl+S / Cmd+S) — name the project anything, e.g. "Finance Bot"
 
-### 3.2 — Create a Render web service
+### 2.3 — Check the sheet ranges
 
-1. Go to https://render.com → **New → Web Service**
-2. Connect your GitHub account → select your `finance-bot` repo
+Open your spreadsheet and verify the row numbers for your Setup sheet.
+The defaults in `Code.gs` assume the template layout:
+- Accounts: rows 8–17, column B
+- Categories: rows 21–50, column B
+- Income Types: rows 54–63, column B
+- Members: rows 8–12, column D
+
+If your layout differs, update the `RANGES` object in `Code.gs`.
+
+### 2.4 — Deploy as Web App
+
+1. Click **Deploy → New deployment**
+2. Click the gear icon ⚙️ next to "Type" → select **Web app**
 3. Settings:
    | Field | Value |
    |---|---|
-   | Name | finance-bot (or whatever) |
-   | Runtime | Python 3 |
-   | Build Command | `pip install -r requirements.txt` |
-   | Start Command | `gunicorn app:app --bind 0.0.0.0:$PORT --workers 1` |
-   | Plan | **Free** |
+   | Description | Finance Tracker API |
+   | Execute as | **Me** |
+   | Who has access | **Anyone** |
+4. Click **Deploy**
+5. You'll be asked to authorise — click through ("Allow")
+6. **Copy the Web App URL** — it looks like:
+   `https://script.google.com/macros/s/LONG_RANDOM_ID/exec`
 
-### 3.3 — Set environment variables in Render
+⚠️ **Important**: every time you change `Code.gs` you must click  
+**Deploy → Manage deployments → Edit → New version → Deploy**  
+to publish the update. Just saving the file is not enough.
 
-In Render → your service → **Environment** tab, add these:
+### 2.5 — Test the backend
 
-| Key | Value |
-|---|---|
-| `BOT_NAME` | Whatever you want to name the bot |
-| `WHATSAPP_TOKEN` | Your permanent Meta system user token |
-| `WHATSAPP_PHONE_ID` | The Phone Number ID from Meta |
-| `VERIFY_TOKEN` | Any string you choose (e.g. `my_secret_2025`) |
-| `SPREADSHEET_ID` | From your Google Sheet URL |
-| `GOOGLE_CREDENTIALS_JSON` | The minified single-line JSON from your service account key |
-
-### 3.4 — Deploy and get your URL
-
-Click **Deploy**. After ~2 minutes, Render gives you a URL like:
+Paste this into your browser (swap in your URL and PIN):
 ```
-https://finance-bot-xxxx.onrender.com
+https://script.google.com/macros/s/YOUR_ID/exec?pin=1234
 ```
-
-Test it: open `https://your-url.onrender.com/ping` in a browser.
-You should see: `{"bot": "MoneyBot", "status": "alive"}`
-
----
-
-## Part 4 — Register the webhook with Meta  (~10 min)
-
-### 4.1 — Configure the webhook
-
-1. In Meta Developer Dashboard → your app → **WhatsApp → Configuration**
-2. Under **Webhook**, click **Edit**
-3. Fill in:
-   - **Callback URL**: `https://your-url.onrender.com/webhook`
-   - **Verify Token**: the exact string you set as `VERIFY_TOKEN`
-4. Click **Verify and Save**
-
-If it says "Verified" ✅ you're good. If it fails, check that your Render service is running.
-
-### 4.2 — Subscribe to messages
-
-Still in **WhatsApp → Configuration → Webhook fields**:
-- Find `messages` → click **Subscribe**
-
-This tells Meta to forward all incoming messages to your webhook.
+You should see a JSON response like:
+```json
+{"ok":true,"accounts":["Checking Account","Savings Account",...],...}
+```
+If you see `{"ok":false,"error":"Invalid PIN"}` — wrong PIN.  
+If you see an error about the spreadsheet — check the SPREADSHEET_ID.
 
 ---
 
-## Part 5 — Set up the ping to avoid cold starts  (~5 min)
+## Part 3 — Set up the PWA frontend  (~10 min)
 
-### 5.1 — Create a free cron job
+### 3.1 — Edit index.html
 
-1. Go to https://cron-job.org → **Sign up free**
-2. **Cronjobs → Create cronjob**
-3. Settings:
-   | Field | Value |
-   |---|---|
-   | URL | `https://your-url.onrender.com/ping` |
-   | Schedule | Every 14 minutes |
-4. **Save**
+Open `index.html` and find this line near the bottom:
+```js
+const SCRIPT_URL = "PASTE_YOUR_APPS_SCRIPT_URL_HERE";
+```
+Replace it with your Web App URL from Step 2.4.
 
-This pings your server every 14 minutes. Render's free tier sleeps after 15 minutes of inactivity, so this keeps it perpetually warm.
+### 3.2 — (Optional) Change the PIN length
 
-### 5.2 — What to expect without the ping
+The default is 4 digits. To change:
+```js
+const PIN_LENGTH = 4;  // change to any number
+```
+Match it with `ACCESS_PIN` in `Code.gs`.
 
-| Scenario | Cold start time |
+### 3.3 — Create a GitHub repository
+
+1. Go to github.com → **New repository**
+2. Name it anything, e.g. `finance-tracker`
+3. Set visibility to **Private** (so the URL isn't public)
+   - Note: GitHub Pages requires a paid plan for private repos.
+   - If you want free hosting, set it to **Public** — the code is just HTML,
+     no secrets are in it (your PIN is validated server-side in Apps Script).
+4. Upload all files from the `finance-pwa/` folder:
+   - `index.html`
+   - `manifest.json`
+   - `sw.js`
+   - (You don't need `Code.gs` or this README in the repo)
+
+### 3.4 — Enable GitHub Pages
+
+1. Go to your repo → **Settings → Pages**
+2. Source: **Deploy from a branch**
+3. Branch: `main` / `(root)`
+4. Click **Save**
+5. After ~60 seconds, GitHub shows your URL:
+   `https://YOUR_USERNAME.github.io/finance-tracker/`
+
+That's your app link. Bookmark it. Share it with your partner.
+
+---
+
+## Part 4 — Install on your phone (feels like a real app)  (~2 min)
+
+### iPhone (Safari)
+1. Open the link in **Safari** (must be Safari, not Chrome)
+2. Tap the **Share** button (box with arrow)
+3. Tap **Add to Home Screen**
+4. Name it "Finance" → **Add**
+
+### Android (Chrome)
+1. Open the link in **Chrome**
+2. Tap the three-dot menu → **Add to Home screen**
+3. Name it → **Add**
+
+The app now appears on your home screen with its own icon, opens full-screen with no browser chrome, and works like a native app.
+
+---
+
+## Part 5 — Share with your partner
+
+Just send them the GitHub Pages link. They open it, enter the PIN, and they're in.
+
+Both of you can log simultaneously — Apps Script handles concurrent writes safely.
+
+---
+
+## How to update categories or accounts
+
+1. Edit your Google Sheet (Setup tab) — add/remove categories, accounts, etc.
+2. The app reads config live from the Sheet on every PIN login.
+   No redeployment needed.
+
+---
+
+## Troubleshooting
+
+| Problem | Fix |
 |---|---|
-| Server was pinged recently | < 1 second |
-| Server slept (no ping) | 20–40 seconds |
-| Mid-conversation restart | User gets "cancelled" message, must restart flow |
-
----
-
-## Part 6 — Test it end to end
-
-1. Open WhatsApp and message the test number Meta gave you
-2. Send any text — you should get the welcome menu
-3. Log a test expense
-4. Open your Google Sheet → Transaction Log tab → should see the new row
-
----
-
-## Part 7 — Keeping it fresh
-
-### Updating categories or accounts
-
-Edit the Setup sheet in Google Drive, then either:
-- Wait up to 1 hour (cache auto-expires), or
-- Visit `https://your-url.onrender.com/refresh` to reload immediately
-
-### Adding your partner
-
-Your partner just messages the same bot number. Meta's test number supports up to 5 approved numbers — add theirs in Meta Dashboard → WhatsApp → API Setup → To field.
-
-### Upgrading to a real phone number (optional, ~€1-2/month)
-
-When you're ready to move beyond the test number:
-1. In Meta Dashboard → **WhatsApp → Phone Numbers → Add phone number**
-2. Use a virtual number from Twilio or Vonage (~€1/month)
-3. The rest stays the same — just update `WHATSAPP_PHONE_ID` in Render
+| PIN screen says "Network error" | Your SCRIPT_URL in index.html is wrong or missing |
+| PIN accepted but lists are empty | Check RANGES in Code.gs match your sheet layout |
+| "Transaction Log sheet not found" | The sheet tab name must be exactly `📝 Transaction Log` |
+| Changes to Code.gs not working | You must deploy a new version (Step 2.4 warning) |
+| App not installing on iPhone | Must use Safari, not Chrome or Firefox |
 
 ---
 
 ## File structure
 
 ```
-whatsapp-bot/
-├── app.py            Main Flask app, webhook endpoints
-├── conversation.py   State machine — all conversation logic
-├── sheets.py         Google Sheets read/write
-├── config.py         Environment variables + sheet range config
-├── requirements.txt  Python dependencies
-├── Procfile          Render/Heroku start command
-├── .env.example      Template (copy to .env, never commit .env)
-└── README.md         This file
+finance-pwa/
+├── index.html     The entire app (UI + logic)
+├── manifest.json  PWA metadata (name, icon, colors)
+├── sw.js          Service worker (offline support)
+└── Code.gs        Google Apps Script backend (NOT uploaded to GitHub)
 ```
-
-## Customising the bot
-
-### Change the bot's name
-Set `BOT_NAME` in Render environment variables.
-
-### Change the welcome message or question wording
-Edit `conversation.py` — all user-facing strings are plain Python strings.
-The `_step_idle()` function is the first message users see.
-
-### Add a new transaction type or question
-The state machine in `conversation.py` follows a simple pattern:
-each step handler sets `_set(phone, next_step, data)` and returns the next question.
-Add new steps by following the same pattern.
-
-### If the Setup sheet layout changes
-Update `SETUP_RANGES` in `config.py` with the new row ranges,
-then visit `/refresh` to reload.
 
 ---
 
@@ -280,10 +207,7 @@ then visit `/refresh` to reload.
 
 | Service | Cost |
 |---|---|
-| Meta Cloud API (WhatsApp) | Free (≤1,000 conversations/month) |
-| Google Sheets API | Free |
-| Google Cloud (service account) | Free |
-| Render.com (web service) | Free |
-| cron-job.org (ping) | Free |
-| GitHub (private repo) | Free |
-| **Total** | **€0 / month** |
+| GitHub Pages | Free |
+| Google Apps Script | Free |
+| Google Sheets | Free |
+| **Total** | **€0 / month, forever** |
