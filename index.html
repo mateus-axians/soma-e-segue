@@ -900,9 +900,9 @@ async function submitTransaction() {
 
   try {
     const res = await fetch(SCRIPT_URL, {
-      method:  "POST",
-      headers: { "Content-Type": "text/plain" },  // Apps Script requires text/plain for CORS POST
-      body:    JSON.stringify(body),
+      method:   "POST",
+      redirect: "follow",
+      body:     JSON.stringify(body),
     });
     const data = await res.json();
     setLoading(false);
